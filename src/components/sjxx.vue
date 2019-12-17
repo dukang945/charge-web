@@ -1,0 +1,1371 @@
+<template>
+  <div class="contain-box">
+    <div class="table-box">
+      <el-form
+        label-position="right"
+        label-width="80px"
+        :model="formLabelSearch"
+        :inline="true"
+        @submit.native. 
+      >
+        <el-form-item label="店铺">
+          <el-input
+            placeholder="请输入店铺名称"
+            v-model="formLabelSearch.shopName"
+            @keyup.enter.native="handleSearch"
+          ></el-input>
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select
+            v-model="formLabelSearch.state"
+            placeholder="请选择状态"
+          >
+            <el-option
+              label="全部"
+              value=""
+            ></el-option>
+            <el-option
+              label="待审核"
+              value="2"
+            ></el-option>
+            <el-option
+              label="审核通过"
+              value="0"
+            ></el-option>
+            <el-option
+              label="已拒绝"
+              value="3"
+            ></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button
+            type="primary"
+            @click="handleSearch"
+          >查询</el-button>
+          <!-- <el-button @click="handleReset">重置</el-button> -->
+        </el-form-item>
+      </el-form>
+    </div>
+    <el-dialog
+      :visible.sync="dialogVisible"
+      title="图片预览"
+    >
+      <img
+        width="100%"
+        :src="dialogImageUrl"
+        alt
+      >
+    </el-dialog>
+    <div class="table-box">
+      <div class="function">
+        <el-button
+          type="primary"
+          @click="dialogAddVisible = true"
+          v-if="save"
+        >新增</el-button>
+        <el-dialog
+          :visible.sync="dialogAddVisible"
+          @open="open"
+          title="新增"
+        >
+          <el-form
+            :model="formLabelAdd"
+            label-position="right"
+            label-width="110px"
+            ref="formLabelAdd"
+            :rules="rules"
+          >
+            <el-form-item
+              label="店铺名称"
+              prop='shopName'
+            >
+              <el-select
+                v-model="formLabelAdd.shopName"
+                filterable
+                placeholder="请选择"
+                :filter-method='getStoreList'
+              >
+                <el-option
+                  v-for="item in restaurants"
+                  :key="item.id"
+                  :label="item.shopName"
+                  :value="item.shopName"
+                >
+                </el-option>
+              </el-select>
+            </el-form-item>
+            <el-form-item
+              label="店铺地址"
+              prop='shopAddress'
+            >
+              <el-cascader
+                size="large"
+                :options="options"
+                v-model="formLabelAdd.shopAddress"
+                :props="props"
+              ></el-cascader>
+            </el-form-item>
+            <el-form-item
+              label="店铺详细地址"
+              prop="shopDetailedAddress"
+            >
+              <el-input
+                v-model="formLabelAdd.shopDetailedAddress"
+                placeholder="请输入详细地址"
+                maxlength="50"
+                show-word-limit
+              ></el-input>
+            </el-form-item>
+            <el-form-item label="营业时间">
+              <el-time-select
+                placeholder="起始时间"
+                v-model="businessStart"
+                :picker-options="{
+                  start: '00:00',
+                  step: '00:15',
+                  end: '24:00'
+                }"
+              ></el-time-select>
+              <el-time-select
+                placeholder="结束时间"
+                v-model="businessEnd"
+                :picker-options="{
+                  start: '00:00',
+                  step: '00:15',
+                  end: '24:00',
+                  minTime: businessStart
+                }"
+              ></el-time-select>
+            </el-form-item>
+            <el-form-item label="店铺图片">
+              <el-upload
+                class="upload-img"
+                action
+                :on-preview="handlePreview"
+                :on-remove="handleRemove"
+                :data="imgData"
+                :before-upload="beforeUpload"
+                :http-request="upload"
+                :limit="1"
+                :file-list="fileList"
+                list-type="picture-card"
+              >
+                <i class="el-icon-plus"></i>
+              </el-upload>
+            </el-form-item>
+            <el-form-item
+              label="商家比例"
+              prop='shopDivide'
+            >
+              <el-select
+                v-model="formLabelAdd.shopDivide"
+                placeholder="请选择"
+              >
+                <el-option
+                  v-for="item in proportionList"
+                  :key="item"
+                  :label="item+'%'"
+                  :value="item"
+                >
+                </el-option>
+              </el-select>
+            </el-form-item>
+            <el-form-item
+              label="水象优品比例"
+              prop='sxypDivide'
+            >
+              <el-select
+                v-model="formLabelAdd.sxypDivide"
+                placeholder="请选择"
+              >
+                <el-option
+                  v-for="item in proportionList"
+                  :key="item"
+                  :label="item+'%'"
+                  :value="item"
+                >
+                </el-option>
+              </el-select>
+            </el-form-item>
+            <!-- <el-form-item label="充电柜数量">
+              <el-input v-model="formLabelAdd.chargeNum"></el-input>
+            </el-form-item> -->
+            <el-form-item
+              label="充电柜编号"
+              prop='charges'
+            >
+              <el-select
+                v-model="formLabelAdd.charges"
+                multiple
+                filterable
+                remote
+                reserve-keyword
+                placeholder="请输入关键词"
+                :filter-method="getChargesList"
+              >
+                <el-option
+                  v-for="item in options1"
+                  :key="item.id"
+                  :label="item.chargeNumber"
+                  :value="item.id"
+                ></el-option>
+              </el-select>
+            </el-form-item>
+            <!-- <el-form-item label="所在城市">
+              <el-cascader
+                size="large"
+                :options="options2"
+                v-model="city"
+                @change="cityChange"
+                :show-all-levels="false"
+                filterable
+                change-on-select
+                :props="props"
+              ></el-cascader>
+            </el-form-item>-->
+            <el-form-item
+              label="业务员"
+              prop='salesmanId'
+            >
+              <el-select
+                v-model="formLabelAdd.salesmanId"
+                filterable
+                :filter-method="getShopList"
+                placeholder="请选择"
+              >
+                <el-option
+                  v-for="item in options3"
+                  :key="item.id"
+                  :label="item.name"
+                  :value="item.id"
+                ></el-option>
+              </el-select>
+            </el-form-item>
+            <el-form-item
+              label="商家账号"
+              prop="admin"
+            >
+              <el-input
+                v-model="formLabelAdd.admin"
+                placeholder="请输入代理商手机号"
+                maxlength="11"
+                show-word-limit
+              ></el-input>
+            </el-form-item>
+            <el-form-item
+              label="银行卡号"
+              prop="transferBankNum"
+            >
+              <el-input
+                v-model="formLabelAdd.transferBankNum"
+                placeholder="请输入银行卡号"
+              ></el-input>
+            </el-form-item>
+            <el-form-item
+              label="绑定姓名"
+              prop="transferRealName"
+            >
+              <el-input
+                v-model="formLabelAdd.transferRealName"
+                placeholder="请输入姓名"
+              ></el-input>
+            </el-form-item>
+            <el-form-item
+              label="绑定手机号"
+              prop='transferPhone'
+            >
+              <el-input
+                v-model="formLabelAdd.transferPhone"
+                placeholder="请输入支付宝账号"
+              ></el-input>
+            </el-form-item>
+            <el-form-item
+              label="身份证"
+              prop="transferIdcard"
+            >
+              <el-input
+                v-model="formLabelAdd.transferIdcard"
+                placeholder="请输入身份证"
+              ></el-input>
+            </el-form-item>
+            <el-form-item label="上传合同">
+              <el-upload
+                class="upload-img"
+                action
+                :on-preview="handlePreview"
+                :on-remove="handleRemove1"
+                :data="imgData"
+                :before-upload="beforeUpload"
+                :http-request="upload1"
+                :limit="1"
+                :file-list="fileList2"
+                list-type="picture-card"
+              >
+                <i class="el-icon-plus"></i>
+              </el-upload>
+            </el-form-item>
+          </el-form>
+          <div
+            slot="footer"
+            class="dialog-footer"
+          >
+            <el-button @click="dialogAddVisible = false">取 消</el-button>
+            <el-button
+              type="primary"
+              @click="handleAdd('formLabelAdd')"
+            >确 定</el-button>
+          </div>
+        </el-dialog>
+        <el-dialog
+          :title="title"
+          :visible.sync="dialogEditVisible"
+          @open="open"
+        >
+          <el-form
+            :model="formLabelEdit"
+            label-position="right"
+            label-width="110px"
+            ref="formLabelEdit"
+            :rules="rules"
+          >
+            <el-form-item
+              label="店铺名称"
+              prop='shopName'
+            >
+              <el-select
+                v-model="formLabelEdit.shopName"
+                filterable
+                placeholder="请选择"
+                :filter-method='getStoreList'
+              >
+                <el-option
+                  v-for="item in restaurants"
+                  :key="item.id"
+                  :label="item.shopName"
+                  :value="item.shopName"
+                >
+                </el-option>
+              </el-select>
+            </el-form-item>
+            <el-form-item
+              label="店铺地址"
+              prop='shopAddress'
+            >
+              <el-cascader
+                size="large"
+                :options="options"
+                v-model="formLabelEdit.shopAddress"
+                :props="props"
+              ></el-cascader>
+              <!-- <el-input v-model="formLabelAdd.name" placeholder="街道"></el-input> -->
+            </el-form-item>
+            <el-form-item
+              label="店铺详细地址"
+              prop="shopDetailedAddress"
+            >
+              <el-input
+                v-model="formLabelEdit.shopDetailedAddress"
+                placeholder="请输入详细地址"
+                maxlength="50"
+                show-word-limit
+              ></el-input>
+            </el-form-item>
+            <el-form-item label="营业时间">
+              <el-time-select
+                placeholder="起始时间"
+                v-model="businessStart"
+                :picker-options="{
+                  start: '00:00',
+                  step: '00:15',
+                  end: '24:00'
+                }"
+              ></el-time-select>
+              <el-time-select
+                placeholder="结束时间"
+                v-model="businessEnd"
+                :picker-options="{
+                  start: '00:00',
+                  step: '00:15',
+                  end: '24:00',
+                  minTime: businessStart
+                }"
+              ></el-time-select>
+            </el-form-item>
+            <el-form-item label="店铺图片">
+              <el-upload
+                class="upload-img"
+                action
+                :on-preview="handlePreview"
+                :on-remove="handleRemove"
+                :data="imgData"
+                :before-upload="beforeUpload"
+                :http-request="upload"
+                :limit="1"
+                :file-list="fileList"
+                list-type="picture-card"
+              >
+                <i class="el-icon-plus"></i>
+              </el-upload>
+              <!-- <el-dialog :visible.sync="dialogVisible">
+                <img width="100%" :src="dialogImageUrl" alt>
+              </el-dialog>-->
+            </el-form-item>
+            <el-form-item
+              label="商家比例"
+              prop='shopDivide'
+            >
+              <el-select
+                v-model="formLabelEdit.shopDivide"
+                placeholder="请选择"
+              >
+                <el-option
+                  v-for="item in proportionList"
+                  :key="item"
+                  :label="item+'%'"
+                  :value="item"
+                >
+                </el-option>
+              </el-select>
+            </el-form-item>
+            <el-form-item
+              label="水象优品比例"
+              prop='sxypDivide'
+            >
+              <el-select
+                v-model="formLabelEdit.sxypDivide"
+                placeholder="请选择"
+              >
+                <el-option
+                  v-for="item in proportionList"
+                  :key="item"
+                  :label="item+'%'"
+                  :value="item"
+                >
+                </el-option>
+              </el-select>
+            </el-form-item>
+            <!-- <el-form-item label="充电柜数量">
+              <el-input v-model="formLabelEdit.chargeNum"></el-input>
+            </el-form-item> -->
+
+            <el-form-item
+              label="补货编号"
+              prop='charges'
+            >
+              <el-select
+                v-model="formLabelEdit.charges"
+                multiple
+                filterable
+                remote
+                reserve-keyword
+                placeholder="请输入关键词"
+                :filter-method="getChargesList"
+              >
+                <el-option
+                  v-for="item in options1"
+                  :key="item.id"
+                  :label="item.chargeNumber"
+                  :value="item.id"
+                ></el-option>
+              </el-select>
+            </el-form-item>
+            <el-form-item label="替换编号">
+              <el-select
+                v-model="oldCharges"
+                multiple
+                remote
+                reserve-keyword
+                placeholder=""
+                disabled
+              >
+                <el-option
+                  v-for="item in optionsOld"
+                  :key="item.id"
+                  :label="item.charge_number"
+                  :value="item.charge_id"
+                ></el-option>
+              </el-select>
+            </el-form-item>
+            <el-form-item
+              label="业务员"
+              prop='salesmanId'
+            >
+              <el-select
+                v-model="formLabelEdit.salesmanId"
+                filterable
+                :filter-method="getShopList"
+                placeholder="请选择"
+              >
+                <el-option
+                  v-for="item in options3"
+                  :key="item.id"
+                  :label="item.name"
+                  :value="item.id"
+                ></el-option>
+              </el-select>
+            </el-form-item>
+            <el-form-item
+              label="商家账号"
+              prop="admin"
+            >
+              <el-input
+                v-model="formLabelEdit.admin"
+                placeholder="请输入账号"
+                maxlength="11"
+                show-word-limit
+              ></el-input>
+            </el-form-item>
+            <el-form-item
+              label="银行卡号"
+              prop="transferBankNum"
+            >
+              <el-input
+                v-model="formLabelEdit.transferBankNum"
+                placeholder="请输入银行卡号"
+              ></el-input>
+            </el-form-item>
+            <el-form-item
+              label="绑定姓名"
+              prop="transferRealName"
+            >
+              <el-input
+                v-model="formLabelEdit.transferRealName"
+                placeholder="请输入姓名"
+              ></el-input>
+            </el-form-item>
+            <el-form-item
+              label="绑定手机号"
+              prop="transferPhone"
+            >
+              <el-input
+                v-model="formLabelEdit.transferPhone"
+                placeholder="请输入支付宝绑定手机号"
+              ></el-input>
+            </el-form-item>
+            <el-form-item
+              label="身份证"
+              prop="transferIdcard"
+            >
+              <el-input
+                v-model="formLabelEdit.transferIdcard"
+                placeholder="请输入支付宝账号"
+              ></el-input>
+            </el-form-item>
+            <el-form-item label="上传合同">
+              <el-upload
+                class="upload-img"
+                action
+                :on-preview="handlePreview"
+                :on-remove="handleRemove1"
+                :data="imgData"
+                :before-upload="beforeUpload"
+                :http-request="upload1"
+                :limit="1"
+                :file-list="fileList2"
+                list-type="picture-card"
+              >
+                <i class="el-icon-plus"></i>
+              </el-upload>
+            </el-form-item>
+          </el-form>
+          <div
+            slot="footer"
+            class="dialog-footer"
+          >
+            <el-button @click="dialogEditVisible = false">取 消</el-button>
+            <el-button
+              type="primary"
+              @click="handleOnline(0)"
+              v-if="flag"
+            >提交审核</el-button>
+            <el-button
+              type="primary"
+              @click="handleOnline(3)"
+              v-if="flag & state!=0"
+            >审核拒绝</el-button>
+            <el-button
+              type="primary"
+              @click="saveEdit('formLabelEdit')"
+              v-if="!flag"
+            >确 定</el-button>
+          </div>
+        </el-dialog>
+      </div>
+      <el-table
+        :data="userList"
+        border
+        style="width: 100%"
+        @filter-change="filterTag"
+      >
+        <el-table-column
+          prop="shopid"
+          label="店铺ID"
+          align="center"
+          width='100'
+        ></el-table-column>
+        <el-table-column
+          prop="shopname"
+          label="店铺名称"
+          align="center"
+          width='250'
+        ></el-table-column>
+        <el-table-column
+          prop="address"
+          label="店铺地址"
+          align="center"
+          show-overflow-tooltip
+        ></el-table-column>
+        <el-table-column
+          prop="loginName"
+          label="分成设置"
+          align="center"
+          width='100'
+        >
+          <template slot-scope="scope">
+            <span v-if="scope.row.shopdivide">{{scope.row.shopdivide+'%'}}--{{scope.row.sxypdivide+'%'}}</span>
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="num"
+          label="充电柜数量"
+          align="center"
+          width='100'
+        ></el-table-column>
+        <el-table-column
+          prop="name"
+          label="业务员"
+          align="center"
+          width='150'
+        ></el-table-column>
+        <el-table-column
+          prop="status"
+          label="状态"
+          align="center"
+          width='100'
+        >
+          <template slot-scope="scope">
+            <span
+              v-if="scope.row.status==0"
+              style="color:#67C23A"
+            >审核通过</span>
+            <span
+              v-if="scope.row.status==2"
+              style='color:#909399'
+            >待审核</span>
+            <span
+              v-if="scope.row.status==3"
+              style='color:#F56C6C'
+            >已拒绝</span>
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="操作"
+          align="center"
+          width="250"
+        >
+          <template slot-scope="scope">
+            <el-button
+              size="mini"
+              @click="handleEdit(scope.$index, scope.row)"
+              v-if="details"
+            >编辑</el-button>
+            <el-button
+              size="mini"
+              @click="handleEdit(scope.$index, scope.row,'online')"
+              :disabled="scope.row.status ===0"
+              v-if="audit"
+            >审核</el-button>
+            <el-button
+              size="mini"
+              @click="handleDelete(scope.$index, scope.row)"
+              v-if="shop_delete"
+            >删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <el-pagination
+        @size-change="handleSizeChange"
+        @current-change="handleCurrentChange"
+        :page-sizes="[10, 20]"
+        :current-page="formLabelAlign.page"
+        :page-size="10"
+        layout="total, sizes, prev, pager, next, jumper"
+        :total="total"
+      ></el-pagination>
+    </div>
+  </div>
+</template>
+
+<script>
+import {
+  provinceAndCityData,
+  regionData,
+  provinceAndCityDataPlus,
+  regionDataPlus,
+  CodeToText,
+  TextToCode
+} from "element-china-area-data";
+import OSS from "ali-oss";
+export default {
+  data() {
+    var validatePass3 = (rule, value, callback) => {
+      console.log(value);
+      var reg = /^1[3456789]\d{9}$/;
+      if (!value) {
+        callback(new Error("请输入账号"));
+      } else if (!reg.test(value)) {
+        callback(new Error("请输入正确手机号!"));
+      } else {
+        callback();
+      }
+    };
+    var checkAddress = (rule, value, callback) => {
+      // if (!value) {
+      //   return callback(new Error("地址不能为空"));
+      // } else {
+      //   callback();
+      // }
+      setTimeout(() => {
+        if (this.errorMsg || !value) {
+          console.log(this.errorMsg);
+          return callback(new Error("未定位到该地址"));
+        } else {
+          callback();
+        }
+      }, 10);
+    };
+    return {
+      total: 1,
+      total1: 1,
+      page: 1,
+      rows: 50,
+      idx: -1,
+      state: -1,
+      title: "",
+      errorMsg: "",
+      flag: false,
+      loading: true,
+      state1: "",
+      oldCharges: [],
+      businessStart: "09:00",
+      businessEnd: "22:00",
+      shopAddress: [],
+      restaurants: [],
+      city: [],
+      fileList: [],
+      fileList2: [],
+      imgData: {},
+      dialogEditVisible: false,
+      dialogAddVisible: false,
+      dialogVisible: false,
+      dialogOnlineVisible: false,
+      dialogImageUrl: "",
+      userList: [],
+      proportionList: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
+      detailList: [],
+      nameList: [],
+      roleList: [],
+      options1: [],
+      optionsOld: [],
+      options3: [],
+      options: regionData,
+      options2: provinceAndCityData,
+      selectedOptions: [],
+      formLabelAlign: {
+        page: 1,
+        rows: 10
+      },
+      formLabelSearch: {
+        page: 1,
+        rows: 10
+      },
+      formLabelAdd: { charges: [] },
+      formLabelEdit: { charges: [] },
+      props: {
+        value: "label"
+      },
+      rules: {
+        transferPhone: [
+          { required: true, validator: validatePass3, trigger: "blur" }
+        ],
+        transferRealName: [
+          { required: true, message: "请输入姓名", trigger: "blur" }
+        ],
+        transferBankNum: [
+          { required: true, message: "请输入银行卡号", trigger: "blur" }
+        ],
+        transferIdcard: [
+          { required: true, message: "请输入身份证", trigger: "blur" }
+        ],
+        admin: [{ required: true, message: "请输入账号", trigger: "blur" }],
+        password: [{ required: true, message: "请输入密码", trigger: "blur" }],
+        shopAddress: [
+          { required: true, message: "请选择地址", trigger: "change" }
+        ],
+        shopName: [
+          { required: true, message: "请选择地址", trigger: "change" }
+        ],
+        charges: [
+          { required: true, message: "请选择充电柜", trigger: "change" }
+        ],
+        salesmanId: [
+          { required: true, message: "请选择业务员", trigger: "change" }
+        ],
+        shopDivide: [
+          { required: true, message: "请输入商家占比", trigger: "blur" }
+        ],
+        sxypDivide: [
+          { required: true, message: "请输入水箱优品占比", trigger: "blur" }
+        ],
+        shopDetailedAddress: [
+          { required: true, validator: checkAddress, trigger: "blur" }
+        ]
+      },
+      save: true,
+      details: true,
+      shop_delete: true,
+      audit: true
+    };
+  },
+  mounted() {
+    this.getUserList(this.formLabelSearch.page, this.formLabelSearch.rows);
+    this.getChargesList();
+    this.getStoreList();
+    this.getShopList();
+    this.getBtnPms(this.$route.name);
+    //新增权限
+    this.btnList.some(item => {
+      return (this.save = item.power == "shop_save");
+    });
+    //编辑权限
+    this.btnList.some(item => {
+      return (this.details = item.power == "shop_details");
+    });
+    //删除权限
+    this.btnList.some(item => {
+      return (this.shop_delete = item.power == "shop_delete");
+    });
+    //编辑权限
+    this.btnList.some(item => {
+      return (this.audit = item.power == "shop_audit");
+    });
+  },
+  computed: {
+    shopName() {
+      return this.formLabelAdd.shopName;
+    },
+    shopDetailedAddress() {
+      return this.formLabelAdd.shopDetailedAddress;
+    },
+    shopDetailedAddressEdit() {
+      return this.formLabelEdit.shopDetailedAddress;
+    },
+    shopNameEdit() {
+      return this.formLabelEdit.shopName;
+    }
+  },
+  watch: {
+    shopName(val) {
+      this.restaurants.filter(item => {
+        if (item.shopName == val) {
+          console.log(item);
+          // this.formLabelAdd.shopDetailedAddress =item.shopAddr;
+          this.$set(this.formLabelAdd, "shopDetailedAddress", item.shopAddr);
+          this.$set(this.formLabelAdd, "shopAddress", [
+            item.districtCn,
+            item.sdistrictCn,
+            item.countyCn
+          ]);
+          this.formLabelAdd.shopNo = item.id;
+        }
+      });
+    },
+    shopDetailedAddress(val) {
+      this.getLocation(val);
+    },
+    shopDetailedAddressEdit(val) {
+      this.getLocation(val);
+    },
+    shopNameEdit(val) {
+      if (this.restaurants) {
+        this.restaurants.filter(item => {
+          if (item.shopName == val) {
+            console.log(item);
+            // this.formLabelEdit.shopDetailedAddress =item.shopAddr;
+            this.$set(this.formLabelEdit, "shopDetailedAddress", item.shopAddr);
+            this.$set(this.formLabelEdit, "shopAddress", [
+              item.districtCn,
+              item.sdistrictCn,
+              item.countyCn
+            ]);
+            this.formLabelEdit.shopNo = item.id;
+          }
+        });
+      }
+    }
+  },
+  methods: {
+    // 获取高德地图经纬度
+    getLocation(address) {
+      this.$axios
+        .get(
+          `https://restapi.amap.com/v3/geocode/geo?address=${address}&key=2a22e943ec56f0c4a7c62c9d8f344c37`
+        )
+        .then(res => {
+          console.log(res);
+          if (res.data.geocodes.length == 0) {
+            console.log(11);
+            this.errorMsg = "请输入有效地址";
+          } else {
+            this.errorMsg = "";
+          }
+        });
+    },
+    //获取列表数据
+    getUserList(page, rows) {
+      console.log(rows);
+      this.$axios
+        .post(
+          "/management/shop/selectShopList",
+          this.$qs.stringify(this.formLabelSearch)
+        )
+        .then(res => {
+          if (res.status == 200) {
+            console.log(res);
+            if (res.data.code == 200) {
+              this.userList = res.data.data.rows;
+              this.total = res.data.data.total;
+            } else {
+              this.$message({
+                type: "warning",
+                message: `加载失败!`
+              });
+            }
+          }
+        });
+    },
+    // 状态筛选、
+    filterTag(value) {
+      this.formLabelSearch.state = Object.values(value)[0][0];
+      this.getUserList(1, 10);
+    },
+    //获取充电柜列表
+    getChargesList(val) {
+      this.$axios
+        .post(
+          "/management/charge/getChargeCombo",
+          this.$qs.stringify({
+            chargeNo: val,
+            page: 1,
+            rows: 50
+          })
+        )
+        .then(res => {
+          if (res.status == 200) {
+            console.log(res);
+            this.options1 = res.data.data.rows;
+          }
+        });
+    },
+    //获取业务员列表
+    getShopList(val) {
+      this.$axios
+        .post(
+          "/management/salesman/selectList",
+          this.$qs.stringify({ page: 1, rows: 50, username: val })
+        )
+        .then(res => {
+          if (res.status == 200) {
+            console.log(res);
+            if (res.data.code == 200) {
+              this.options3 = res.data.data.rows;
+            } else {
+              this.$message({
+                type: "warning",
+                message: `加载失败!`
+              });
+            }
+          }
+        });
+    },
+    // 获取店铺列表
+    getStoreList(val) {
+      this.$axios
+        .post(
+          "/management/shop/getShopByNameToSh",
+          this.$qs.stringify({ shopName: val })
+        )
+        .then(res => {
+          if (res.status == 200) {
+            console.log(JSON.parse(res.data.data));
+            this.restaurants = JSON.parse(res.data.data);
+          }
+        });
+    },
+    //新增
+    //dialog打开的回调
+    open() {
+      if (this.$refs["formLabelAdd"]) {
+        this.$refs["formLabelAdd"].resetFields();
+      }
+      if (this.$refs["formLabelEdit"]) {
+        this.$refs["formLabelEdit"].resetFields();
+      }
+      this.formLabelAdd = { charges: [] };
+      this.shopAddress = this.city = [];
+      this.businessStart = "09:00";
+      this.businessEnd = "22:00";
+      this.formLabelAlign = { charges: [] };
+      this.fileList = [];
+      this.fileList2 = [];
+      this.getStoreList(1);
+    },
+    handleAdd(formName) {
+      console.log(this.businessStart);
+      this.$refs[formName].validate(valid => {
+        if (valid) {
+          this.formLabelAdd.charges = this.formLabelAdd.charges.toString();
+          this.formLabelAdd.businessStart =
+            "1970-01-01" + " " + this.businessStart + ":00";
+          this.formLabelAdd.businessEnd =
+            "1970-01-01" + " " + this.businessEnd + ":00";
+          this.formLabelAdd.shopAddress = this.formLabelAdd.shopAddress.join(
+            " "
+          );
+          console.log(this.formLabelAdd);
+          this.$axios
+            .post(
+              "/management/shop/saveShop",
+              this.$qs.stringify(this.formLabelAdd)
+            )
+            .then(res => {
+              if (res.status == 200) {
+                if (res.data.code == 506) {
+                  this.$message({
+                    type: "warning",
+                    message: `账号重复`
+                  });
+                  return false;
+                } else if (res.data.code == 507) {
+                  this.$message({
+                    type: "warning",
+                    message: `手机号重复`
+                  });
+                  return false;
+                }
+                this.$message({
+                  type: "success",
+                  message: `添加成功!`
+                });
+                this.dialogAddVisible = false;
+                this.getUserList(1, 10);
+                this.$refs[formName].resetFields();
+                this.formLabelAdd = {};
+              }
+            });
+        } else {
+          console.log("error submit!!");
+          return false;
+        }
+      });
+    },
+    // 审核
+    handleOnline(state) {
+      this.state = state;
+      this.$axios
+        .post(`/management/shop/auditShop?id=${this.idx}&state=${state}`)
+        .then(res => {
+          if (res.status == 200) {
+            console.log(res);
+            if (res.data.code == 1) {
+              this.$message.error("操作失败");
+              return;
+            }
+            this.$message.success("操作成功");
+            this.dialogEditVisible = false;
+            this.getUserList(
+              this.formLabelSearch.page,
+              this.formLabelSearch.rows
+            );
+          }
+        });
+    },
+    //编辑
+    handleEdit(index, rows, str) {
+      this.flag = false;
+      this.title = "编辑";
+      this.oldCharges = [];
+      console.log(rows);
+      if (str) {
+        this.flag = true;
+        this.title = "审核";
+        this.state = rows.status;
+        if (this.state == 0) {
+          this.$message.warning("请重新编辑后操作");
+          return false;
+        }
+      }
+      this.dialogEditVisible = true;
+      this.idx = rows.shopid;
+      this.$axios
+        .post(`/management/shop/selectShopDetails?id=${rows.shopid}`)
+        .then(res => {
+          if (res.status == 200) {
+            console.log(res);
+            this.getShopList(res.data.data.adminName);
+            this.options1 = res.data.data.charges;
+            this.optionsOld = res.data.data.chargeAuditList;
+            var element = [];
+            for (let index = 0; index < res.data.data.charges.length; index++) {
+              element.push(res.data.data.charges[index].id);
+            }
+            for (
+              let index = 0;
+              index < res.data.data.chargeAuditList.length;
+              index++
+            ) {
+              this.oldCharges.push(
+                res.data.data.chargeAuditList[index].charge_id
+              );
+            }
+            this.formLabelEdit = {
+              shopName: res.data.data.shopName,
+              salesmanId: res.data.data.salesmanId,
+              admin: res.data.data.admin,
+              shopDetailedAddress: res.data.data.shopDetailedAddress,
+              shopDivide: res.data.data.shopDivide,
+              sxypDivide: res.data.data.sxypDivide,
+              chargeNum: res.data.data.chargeNum,
+              charges: element,
+              imageUrl: res.data.data.imageUrl,
+              zfbName: res.data.data.zfbName,
+              zfbNo: res.data.data.zfbNo,
+              contractImg: res.data.data.contractImg,
+              status: res.data.data.status,
+              transferBankNum: res.data.data.transferBankNum,
+              transferIdcard: res.data.data.transferIdcard,
+              transferPhone: res.data.data.transferPhone,
+              transferRealName: res.data.data.transferRealName
+            };
+
+            this.getStoreList(this.formLabelEdit.shopName);
+            console.log(this.formLabelEdit);
+            if (res.data.data.imageUrl) {
+              this.fileList = [
+                { url: res.data.data.imageUrl, name: "店铺头像" }
+              ];
+            } else {
+              this.fileList = [];
+            }
+            if (res.data.data.contractImg) {
+              this.fileList2 = [
+                { url: res.data.data.contractImg, name: "合同" }
+              ];
+            } else {
+              this.fileList2 = [];
+            }
+            console.log(this.fileList);
+            this.formLabelEdit.shopAddress = res.data.data.shopAddress.split(
+              " "
+            );
+            this.businessStart = res.data.data.businessStart.split(" ")[1];
+            this.businessEnd = res.data.data.businessEnd.split(" ")[1];
+          }
+        });
+      // this.formLabelEdit = rows
+      // this.shopAddress =
+    },
+    //确认编辑
+    saveEdit(formName) {
+      this.$refs[formName].validate(valid => {
+        if (valid) {
+          this.formLabelEdit.charges = this.formLabelEdit.charges.toString();
+          this.formLabelEdit.businessStart =
+            "1970-01-01" + " " + this.businessStart + ":00";
+          this.formLabelEdit.businessEnd =
+            "1970-01-01" + " " + this.businessEnd + ":00";
+          this.formLabelEdit.shopAddress = this.formLabelEdit.shopAddress.join(
+            " "
+          );
+          console.log(this.formLabelEdit);
+          this.$axios
+            .post(
+              `/management/shop/saveShop?id=${this.idx}`,
+              this.$qs.stringify(this.formLabelEdit)
+            )
+            .then(res => {
+              if (res.status == 200) {
+                console.log(res);
+                if (res.data.code == 506) {
+                  this.$message({
+                    type: "warning",
+                    message: `账号重复`
+                  });
+                  return false;
+                } else if (res.data.code == 507) {
+                  this.$message({
+                    type: "warning",
+                    message: `手机号重复`
+                  });
+                  return false;
+                }
+                this.$message({
+                  type: "success",
+                  message: `编辑成功!`
+                });
+                this.dialogEditVisible = false;
+                this.getUserList(1, 10);
+                this.$refs[formName].resetFields();
+                this.formLabelEdit = {};
+              }
+            });
+        } else {
+          console.log("error submit!!");
+          return false;
+        }
+      });
+    },
+    handleDelete(index, rows) {
+      console.log(rows);
+      this.$confirm("此操作将永久删除该数据, 是否继续?", "提示", {
+        confirmButtonText: "确定",
+        cancelButtonText: "取消",
+        type: "warning"
+      }).then(() => {
+        this.$axios
+          .get(`/management/shop/deleteShop?ids=${rows.shopid}`)
+          .then(res => {
+            if (res.status == 200) {
+              this.$message.success("删除成功");
+              this.getUserList(
+                this.formLabelSearch.page,
+                this.formLabelSearch.rows
+              );
+            }
+          });
+      });
+    },
+    // 查询
+    handleSearch() {
+      this.getUserList(1, this.formLabelSearch.rows);
+    },
+    //重置
+    handleReset() {
+      this.formLabelSearch = this.formLabelAlign = {
+        phone: "",
+        loginAccount: "",
+        roleName: "",
+        state: "",
+        page: 1,
+        rows: 10
+      };
+    },
+    //选择地址
+    addressChange(arr) {
+      console.log(arr);
+
+      this.formLabelAdd.shopAddress = arr.join(" ");
+      if (this.dialogEditVisible) {
+        this.formLabelEdit.shopAddress = arr.join(" ");
+      }
+    },
+    cityChange(arr) {
+      console.log(arr);
+      this.formLabelAdd.city = arr.join(" ");
+      if (this.dialogEditVisible) {
+        this.formLabelEdit.city = arr.join(" ");
+      }
+    },
+    //图片上传
+    handleRemove(file, fileList) {
+      this.formLabelAdd.imageUrl = "";
+      if (this.dialogEditVisible) {
+        this.formLabelEdit.imageUrl = "";
+      }
+    },
+    handleRemove1(file, fileList) {
+      this.formLabelAdd.contractImg = "";
+      if (this.dialogEditVisible) {
+        this.formLabelEdit.contractImg = "";
+      }
+    },
+    handlePreview(file) {
+      this.dialogVisible = true;
+      this.dialogImageUrl = file.url;
+    },
+    beforeUpload(file) {
+      this.imgData.FileName = file.name;
+      this.imgData.imgFile = file;
+      console.log(file);
+      const isJPG =
+        file.type == "image/png" ||
+        file.type == "image/jpeg" ||
+        file.type == "image/jpg";
+      if (!isJPG) {
+        this.$message.error("上传图片只能是 JPEG/PNG/JPG 格式!");
+      }
+      return isJPG;
+    },
+    upload(item) {
+      let client = new OSS({
+        region: "oss-cn-shanghai", // 服务器集群地区
+        accessKeyId: "LTAIBlmIfZYuFy39", // OSS帐号
+        accessKeySecret: "WtLJa4obg3fdExi3DL1v3XhT7LIufv", // OSS 密码
+        bucket: "whsxdz-charge" // 阿里云上存储的 Bucket
+      });
+      let key =
+        new Date().valueOf() +
+        "_" +
+        Math.round(Math.random() * 999999) +
+        ".jpg"; // 存储路径，并且给图片改成唯一名字
+      return client.put(key, item.file).then(res => {
+        console.log(res);
+        this.formLabelAdd.imageUrl = res.url;
+        if (this.dialogEditVisible) {
+          this.formLabelEdit.imageUrl = res.url;
+        }
+      }); // OSS上传
+    },
+    upload1(item) {
+      let client = new OSS({
+        region: "oss-cn-shanghai", // 服务器集群地区
+        accessKeyId: "LTAIBlmIfZYuFy39", // OSS帐号
+        accessKeySecret: "WtLJa4obg3fdExi3DL1v3XhT7LIufv", // OSS 密码
+        bucket: "whsxdz-charge" // 阿里云上存储的 Bucket
+      });
+      let key =
+        new Date().valueOf() +
+        "_" +
+        Math.round(Math.random() * 999999) +
+        ".jpg"; // 存储路径，并且给图片改成唯一名字
+      return client.put(key, item.file).then(res => {
+        console.log(res);
+        this.formLabelAdd.contractImg = res.url;
+        if (this.dialogEditVisible) {
+          this.formLabelEdit.contractImg = res.url;
+        }
+      }); // OSS上传
+    },
+    //分页
+    handleSizeChange(val) {
+      this.formLabelSearch.rows = val;
+      this.getUserList(this.formLabelSearch.page, this.formLabelSearch.rows);
+    },
+    handleCurrentChange(val) {
+      this.formLabelSearch.page = val;
+      this.getUserList(this.formLabelSearch.page, this.formLabelSearch.rows);
+    }
+  }
+};
+</script>
+
+<style>
+.black {
+  color: #fff;
+  opacity: 0;
+}
+.el-form-item__content {
+  line-height: 38px !important;
+}
+</style>
